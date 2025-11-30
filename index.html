@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enterprise ERP System</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <script type="module">
+    import salesModule from './js/modules/sales.js';
+    
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('salesApp', salesModule);
+    });
+  </script>
+</head>
+
+<body class="bg-gray-100 text-gray-800 font-sans">
+  
+  <div class="flex h-screen overflow-hidden">
+    <aside class="w-64 bg-slate-800 text-white flex flex-col">
+      <div class="p-4 text-xl font-bold border-b border-slate-700">ERP Pro Max</div>
+      <nav class="flex-1 p-2 space-y-1">
+        <a href="#" class="block px-4 py-2 bg-blue-600 rounded">Sales Module</a>
+        <a href="#" class="block px-4 py-2 hover:bg-slate-700 rounded text-gray-300">HR Module (Coming)</a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 overflow-auto p-6" x-data="salesApp">
+      
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-700">ระบบบริหารงานขาย</h2>
+        <div class="space-x-2">
+           <button @click="resetForm()" class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">ล้างค่า</button>
+           <button @click="printQuotation()" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700 flex items-center gap-2">
+             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+             พิมพ์ใบเสนอราคา
+           </button>
+           <button @click="saveOrder()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">บันทึกข้อมูล</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded shadow p-6 mb-6">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">ชื่อลูกค้า</label>
+                <input type="text" x-model="form.customer.firstName" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ระบุชื่อลูกค้า...">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">เลขที่เอกสาร</label>
+                <input type="text" x-model="form.soNo" class="w-full border bg-gray-50 p-2 rounded" placeholder="Auto Generate" readonly>
+            </div>
+        </div>
+
+        <table class="w-full mb-4 border-collapse">
+            <thead>
+                <tr class="bg-gray-50 text-left text-sm uppercase text-gray-600">
+                    <th class="p-2 border-b">สินค้า/บริการ</th>
+                    <th class="p-2 border-b w-24 text-right">จำนวน</th>
+                    <th class="p-2 border-b w-32 text-right">ราคาต่อหน่วย</th>
+                    <th class="p-2 border-b w-32 text-right">รวม</th>
+                    <th class="p-2 border-b w-10"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(item, index) in form.items" :key="index">
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2"><input type="text" x-model="item.name" class="w-full border-none bg-transparent focus:ring-0" placeholder="ชื่อสินค้า..."></td>
+                        <td class="p-2"><input type="number" x-model="item.qty" @input="calculateTotal()" class="w-full text-right border rounded p-1"></td>
+                        <td class="p-2"><input type="number" x-model="item.price" @input="calculateTotal()" class="w-full text-right border rounded p-1"></td>
+                        <td class="p-2 text-right" x-text="(item.qty * item.price).toLocaleString()"></td>
+                        <td class="p-2 text-center text-red-500 cursor-pointer" @click="removeItem(index)">&times;</td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+        
+        <button @click="addItem()" class="text-blue-600 text-sm hover:underline">+ เพิ่มรายการ</button>
+
+        <div class="mt-4 text-right text-xl font-bold">
+            ยอดรวมทั้งสิ้น: <span x-text="form.payment.total.toLocaleString()"></span> THB
+        </div>
+      </div>
+
+      <div class="bg-white rounded shadow p-6">
+        <h3 class="text-lg font-bold mb-4">ประวัติการขายล่าสุด</h3>
+        <table class="w-full">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="p-2 text-left">Date</th>
+                    <th class="p-2 text-left">Doc No.</th>
+                    <th class="p-2 text-left">Customer</th>
+                    <th class="p-2 text-right">Amount</th>
+                    <th class="p-2 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="order in orders" :key="order.soNo">
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2" x-text="order.soDate"></td>
+                        <td class="p-2 text-blue-600 cursor-pointer hover:underline" x-text="order.soNo" @click="editOrder(order)"></td>
+                        <td class="p-2" x-text="order.customer.firstName + ' ' + (order.customer.lastName||'')"></td>
+                        <td class="p-2 text-right" x-text="order.payment.total.toLocaleString()"></td>
+                        <td class="p-2 text-center">
+                            <button @click="printReceipt(order)" class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">พิมพ์ใบเสร็จ</button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+</html>
